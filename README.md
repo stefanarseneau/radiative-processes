@@ -13,9 +13,13 @@ which will return a numpy array of shape `(n,4,3,m)` where `n` indexes the spect
 
 ---
 
-Sujay: have a look at the intro of this paper:
+**Papers Related To Line Shapes Generally:**
 
-https://ui.adsabs.harvard.edu/abs/2022ApJ...927...70C/abstract
+* https://ui.adsabs.harvard.edu/abs/2022ApJ...927...70C/abstract
+
+**UV-Specific Papers**
+
+* https://ui.adsabs.harvard.edu/abs/2023MNRAS.526.5800S/abstract
 
 ---
 
