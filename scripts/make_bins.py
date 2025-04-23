@@ -9,7 +9,7 @@ import argparse
 import corv
 
 dirpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-corvmodel = corv.models.WarwickDAModel(model_name = '3d_da_lte_h2', names = ['a', 'b', 'g', 'd'], windows = 100).model
+corvmodel = corv.models.Spectrum(model = '3d_da_lte_h2', units = 'flam', wavl_range = (3600, 9000))
 
 def read_nlte_spectrum(source_id : str) -> Tuple[np.array, np.array, np.array]:
     """read a spectrum and return its parameters
@@ -18,6 +18,17 @@ def read_nlte_spectrum(source_id : str) -> Tuple[np.array, np.array, np.array]:
     fit = Table.read(os.path.join(dirpath, 'data', 'radial_velocities', 'nlte_core', 'ab_15aa.csv')).to_pandas()
     fitrow = fit.query(f"obsname == '{source_id}'")
     return (fitrow.nlte_rv.values[0], fitrow.nlte_teff.values[0], fitrow.nlte_logg.values[0]), spec.wavl, spec.flux, spec.ivar
+
+def read_model_spectrum(source_id : str) -> Tuple[np.array, np.array, np.array]:
+    """read a spectrum and return its parameters
+    """
+    fit = Table.read(os.path.join(dirpath, 'data', 'radial_velocities', 'nlte_core', 'ab_15aa.csv')).to_pandas()
+    fitrow = fit.query(f"obsname == '{source_id}'")
+    rv, teff, logg = fitrow.nlte_rv.values[0], fitrow.nlte_teff.values[0], fitrow.nlte_logg.values[0]
+    wavl, flux = corvmodel.wavl, corvmodel.model_spec((teff, logg))
+    ivar = 1e4*np.ones(flux.shape[0])
+    flux = corv.utils.doppler_shift(wavl, flux, rv)
+    return (rv, teff, logg), wavl, flux, ivar
 
 def cutout_line(wavl : np.array, flux : np.array, ivar : np.array, line : str = 'a', window : float = 100.0) -> Tuple[np.array, np.array, np.array]:
     """isolate the 100 angstrom around some absorption line and remove obviously bad points
@@ -45,7 +56,7 @@ def get_bins(wavl : np.array, flux : np.array, ivar : np.array, samples : int = 
         e_center.append(np.std(bincenters))
     return np.array(bin_edges), np.array(center), np.array(e_center)
 
-def get_binfile(obsnames : np.array, samples : int = 10, num_bins : int = 20) -> np.ndarray:
+def get_binfile(obsnames : np.array, samples : int = 10, num_bins : int = 20, spectrum_function = read_nlte_spectrum) -> np.ndarray:
     """return a numpy ndarray with all the center curves to save
     """
     lines = ['a', 'b', 'g', 'd']
@@ -54,7 +65,7 @@ def get_binfile(obsnames : np.array, samples : int = 10, num_bins : int = 20) ->
         try:
             obs_obj = []
             # read in the spectrum
-            params, wavl, flux, ivar = read_nlte_spectrum(obsname)
+            params, wavl, flux, ivar = spectrum_function(obsname)
             for j, line in enumerate(lines):
                 # cut out the 100 angstrom around a given absorption line
                 wavl_cutout, flux_cutout, ivar_cutout = cutout_line(wavl, flux, ivar, line = line, window = 100)
@@ -76,10 +87,12 @@ if __name__ == "__main__":
     parser.add_argument('--n_bins', type=int, default=20)
     parser.add_argument('--array_savefile', type=str, default='linecenters.npy')
     parser.add_argument('--names_savefile', type=str, default='names_linecenters.npy')
+    parser.add_argument('--use_data', type=bool, default=False)
     args = parser.parse_args()
 
+    function = read_nlte_spectrum if args.use_data else read_model_spectrum
     spyobjs = pd.read_csv(os.path.join('data', 'reference_objs.csv'))
     obsnames = spyobjs.obsname.values[args.start_idx:args.stop_idx]
-    names, centers = get_binfile(obsnames, samples = args.n_samples, num_bins = args.n_bins)
+    names, centers = get_binfile(obsnames, samples = args.n_samples, num_bins = args.n_bins, spectrum_function=function)
     np.save(args.array_savefile, centers)
     np.save(args.names_savefile, names)

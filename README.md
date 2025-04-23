@@ -1,6 +1,8 @@
 ## Radiative Processes Project
 ---
 
+**NOTE:: I calculated the bins for all the model spectra and saved them as `{}_model.npy`. I also moved all the data into `binned-data/`.**
+
 To run the notebook, you'll need to install the python package `corv`:
 
 `pip install git+https://github.com/vedantchandra/corv`
