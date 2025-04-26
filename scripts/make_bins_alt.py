@@ -9,16 +9,15 @@ from pathlib import Path
 from tqdm import tqdm
 from typing import Tuple
 
-dirpath = Path(__file__).parents[1]
-corvmodel = corv.models.Spectrum(model = '3d_da_lte_h2', units = 'flam', wavl_range = (1150, 1300))
+dir = Path(__file__).parents[1]
+corvmodel = corv.models.Spectrum(model='3d_da_lte_h2', units='flam', wavl_range=(1150, 1300))
 
-def read_nlte_spectrum(source_id : str) -> Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
-    """read a spectrum and return its parameters"""
+def read_nlte_spectrum(source_id: str) -> Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
+    """given a source, return its parameters and spectrum"""
 
-    spec = Table.read(dirpath / f'data/hst_cos/{source_id}/{source_id}_coadd_FUVM_final_lpALL.fits.gz').to_pandas()
-    fit = Table.read(os.path.join(dirpath, 'data', 'radial_velocities', 'nlte_core', 'ab_15aa.csv')).to_pandas()
-    fitrow = fit.query(f"obsname == '{source_id}'")
-    return (fitrow.nlte_rv.values[0], fitrow.nlte_teff.values[0], fitrow.nlte_logg.values[0]), spec.wavl, spec.flux, spec.ivar
+    spec = Table.read(dir / f'data/hst_cos/{source_id}_coadd_FUVM_final_lpALL.fits.gz').to_pandas()
+    params = pd.read_csv(dir / 'data/hst_cos/cos_params.csv').query('SOURCE_ID == "@source_id"')
+    return (params.radial_velocity.iloc[0], params.teff_gspphot.iloc[0], params.logg_gspphot.iloc[0]), spec.WAVE, spec.FLUX, spec.IVAR
 
 def read_model_spectrum(source_id : str) -> Tuple[np.array, np.array, np.array]:
     """read a spectrum and return its parameters
