@@ -9,20 +9,20 @@ from tqdm import tqdm
 from typing import Tuple
 
 dir = Path(__file__).parents[1]
-corvmodel = corv.models.Spectrum(model='3d_da_lte_h2', units='flam', wavl_range=(1150, 1300))
+corvmodel = corv.models.Spectrum(model='3d_da_lte_h2', units='flam', wavl_range=(840, 1320))
 
 def read_nlte_spectrum(source_id: str) -> Tuple[Tuple[np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
     """given a source, return its parameters and spectrum"""
 
     spec = Table.read(dir / f'data/hst_cos/{source_id.replace(' ', '-')}_coadd_FUVM_final_lpALL.fits.gz').to_pandas()
-    params = pd.read_csv(dir / 'data/hst_cos/cos_params.csv').query('SOURCE_ID == @source_id')
-    return (params.radial_velocity.iloc[0], params.teff_gspphot.iloc[0], params.logg_gspphot.iloc[0]), spec.WAVE.values, spec.FLUX.values, 1e12*np.ones_like(spec.WAVE)
+    params = pd.read_csv(dir / 'data/hst_cos/cos_params_updated.csv').query('NAMES == @source_id')
+    return (params.RV.iloc[0], params.teff.iloc[0], params.logg.iloc[0]), spec.WAVE.values, spec.FLUX.values, 1 / (1e-6 + spec.ERROR)**2
 
 def read_model_spectrum(source_id: str) -> Tuple[Tuple[np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
     """read a spectrum and return its parameters and model spectrum"""
 
-    params = pd.read_csv(dir / 'data/hst_cos/cos_params.csv').query('SOURCE_ID == @source_id')
-    rv, teff, logg = params.radial_velocity.iloc[0], params.teff_gspphot.iloc[0], params.logg_gspphot.iloc[0]
+    params = pd.read_csv(dir / 'data/hst_cos/cos_params_updated.csv').query('NAMES == @source_id')
+    rv, teff, logg = params.RV.iloc[0], params.teff.iloc[0], params.logg.iloc[0]
     wl, flux, ivar = corvmodel.wavl, corvmodel.model_spec((teff, logg)), 1e4*np.ones(corvmodel.wavl.shape[0])
     flux = corv.utils.doppler_shift(wl, flux, rv)
     return (rv, teff, logg), wl, flux, ivar
@@ -30,7 +30,7 @@ def read_model_spectrum(source_id: str) -> Tuple[Tuple[np.ndarray], np.ndarray, 
 def cutout_line(wavl: np.array, flux: np.array, ivar: np.array, line: str = 'a', window: float = 100.0) -> Tuple[np.ndarray]:
     """isolate some absorption line and remove obviously bad points"""
 
-    wavelengths = {'Lya': 1215.674}
+    wavelengths = {'Lya': 1215.674, 'LyB': 1025.722, 'Lyg': 972.537, 'Lyd': 949.74287}
     wavl_cutout, flux_cutout, ivar_cutout = corv.utils.cont_norm_line(wavl, flux, ivar, wavelengths[line], window, 10)
     mask = (0 < flux_cutout) * (flux_cutout < 1.3)
     return wavl_cutout[mask], flux_cutout[mask], ivar_cutout[mask]
@@ -48,7 +48,7 @@ def get_bins(wavl: np.ndarray, flux: np.ndarray, ivar: np.ndarray, samples: int 
         for i in range(samples):
             samp_flux = fluxes[:,i]
             mask = (bin_edges[j] < samp_flux) * (samp_flux < bin_edges[j+1])
-            bincenters.append(wavl[mask].mean())
+            bincenters.append(np.mean(wavl[mask]))
         center.append(np.mean(bincenters))
         e_center.append(np.std(bincenters))
     return bin_edges, np.array(center), np.array(e_center)
@@ -56,7 +56,7 @@ def get_bins(wavl: np.ndarray, flux: np.ndarray, ivar: np.ndarray, samples: int 
 def get_binfile(obsnames: np.ndarray, samples: int = 10, num_bins: int = 20, spectrum_function=read_nlte_spectrum) -> np.ndarray:
     """return a numpy ndarray with all the center curves to save"""
 
-    lines = ['Lya']
+    lines = ['Lya', 'LyB', 'Lyg', 'Lyd']
     return_obj, succeeded = [], []
     for i, obsname in tqdm(enumerate(obsnames), total=obsnames.shape[0]):
         try:
@@ -73,7 +73,6 @@ def get_binfile(obsnames: np.ndarray, samples: int = 10, num_bins: int = 20, spe
             return_obj.append(obs_obj)
             succeeded.append(obsname)
         except Exception as e:
-            raise e
             print(f'Failed to compute {obsname} : {e}')
     return np.array(succeeded), np.array(return_obj)
 
@@ -89,7 +88,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     read_func = read_nlte_spectrum if args.use_data else read_model_spectrum
-    obsnames = pd.read_csv('data/hst_cos/cos_params.csv').dropna().SOURCE_ID.values[args.start:args.stop]
+    obsnames = pd.read_csv('data/hst_cos/cos_params_updated.csv').dropna().NAMES.values[args.start:args.stop]
     names, centers = get_binfile(obsnames, args.n_samples, args.n_bins, read_func)
     np.save(args.array_savefile, centers)
     np.save(args.names_savefile, names)
