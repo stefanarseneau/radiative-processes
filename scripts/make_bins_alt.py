@@ -1,7 +1,6 @@
 import argparse
 import corv
 import numpy as np
-import os
 import pandas as pd
 
 from astropy.table import Table
@@ -90,7 +89,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     read_func = read_nlte_spectrum if args.use_data else read_model_spectrum
-    obsnames = pd.read_csv('data/hst_cos/cos_params.csv').SOURCE_ID.values[args.start:args.stop]
+    obsnames = pd.read_csv('data/hst_cos/cos_params.csv').dropna().SOURCE_ID.values[args.start:args.stop]
     names, centers = get_binfile(obsnames, args.n_samples, args.n_bins, read_func)
     np.save(args.array_savefile, centers)
     np.save(args.names_savefile, names)
