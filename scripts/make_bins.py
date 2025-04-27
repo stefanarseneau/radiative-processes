@@ -60,6 +60,7 @@ def get_binfile(obsnames : np.array, samples : int = 10, num_bins : int = 20, sp
     """return a numpy ndarray with all the center curves to save
     """
     lines = ['a', 'b', 'g', 'd']
+    windows = [70, 100, 85, 75]
     return_obj, succeeded = [], []
     for i, obsname in tqdm(enumerate(obsnames), total = obsnames.shape[0]):
         try:
@@ -68,7 +69,7 @@ def get_binfile(obsnames : np.array, samples : int = 10, num_bins : int = 20, sp
             params, wavl, flux, ivar = spectrum_function(obsname)
             for j, line in enumerate(lines):
                 # cut out the 100 angstrom around a given absorption line
-                wavl_cutout, flux_cutout, ivar_cutout = cutout_line(wavl, flux, ivar, line = line, window = 100)
+                wavl_cutout, flux_cutout, ivar_cutout = cutout_line(wavl, flux, ivar, line = line, window = windows[j])
                 # compute the normalized flux bins, their wavelength center, and the x axis uncertainty
                 bin_edges, centers, e_centers = get_bins(wavl_cutout, flux_cutout, ivar_cutout, samples = samples, num_bins = num_bins)
                 bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2

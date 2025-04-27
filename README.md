@@ -9,7 +9,7 @@ To run the notebook, you'll need to install the python package `corv`:
 
 To make the black curves from the notebook, run the following command:
 
-`python3 scripts/make_bins.py --start_idx=0 --stop_idx=-1 --n_samples=10 --n_bins=20 --savefile=linecenters.npy`
+`python3 scripts/make_bins.py --start_idx=0 --stop_idx=-1 --n_samples=10 --n_bins=20 --array_savefile=binned-data/linecenters.npy --names_savefile=binned-data/names_linecenters.npy --use_data=True`
 
 which will return a numpy array of shape `(n,4,3,m)` where `n` indexes the spectrum, the `4` dimension indexes the absorption line (`[a,b,g,d]`), `3` indexes the column to use (`[bincenter, e_bincenter, normalized_flux]`), and `m` is the `n_bins` parameter.
 
